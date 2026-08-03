@@ -49,8 +49,8 @@ export default function RegisterPage() {
   return (
     <div className="max-w-md mx-auto py-8 space-y-6">
       <div className="text-center space-y-2">
-        <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 mx-auto flex items-center justify-center mb-2">
-          <UserPlus className="w-6 h-6" />
+        <div className="mb-3">
+          <img src="/logo-otova.png" alt="OTOVA Logo" className="h-12 mx-auto object-contain" />
         </div>
         <h1 className="text-2xl font-extrabold text-white">Daftar Akun User Otova</h1>
         <p className="text-xs text-gray-400">
