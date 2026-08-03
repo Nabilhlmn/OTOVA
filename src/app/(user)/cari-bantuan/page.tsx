@@ -246,7 +246,10 @@ export default function CariBantuanPage() {
               </button>
             </div>
             <p className="text-[11px] text-gray-400">
-              Koordinat: {userLocation.lat.toFixed(5)}, {userLocation.lng.toFixed(5)} (Bandung)
+              Koordinat: {userLocation.lat.toFixed(5)}, {userLocation.lng.toFixed(5)}{' '}
+              {userLocation.lat === -6.917464 && userLocation.lng === 107.619123
+                ? '(Default: Bandung)'
+                : '(GPS Aktif)'}
             </p>
           </div>
 
