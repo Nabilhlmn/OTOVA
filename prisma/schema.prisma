@@ -1,0 +1,147 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(uuid())
+  full_name     String
+  email         String   @unique
+  phone_number  String
+  password_hash String
+  role          String   @default("user") // "user" | "mitra" | "admin"
+  profile_photo String?
+  address       String?
+  latitude      Float?
+  longitude     Float?
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  partner       Partner?
+  orders        Order[]        @relation("UserOrders")
+  reviews       Review[]       @relation("UserReviews")
+  notifications Notification[] @relation("UserNotifications")
+
+  @@map("users")
+}
+
+model Partner {
+  id                  String   @id @default(uuid())
+  user_id             String   @unique
+  user                User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  partner_type        String   // "bengkel" | "teknisi" | "tambal_ban"
+  business_name       String
+  ktp_photo           String?
+  business_photo      String?
+  qris_photo          String?
+  address             String
+  latitude            Float
+  longitude           Float
+  verification_status String   @default("pending") // "pending" | "approved" | "rejected" | "suspended"
+  suspension_reason   String?
+  is_online           Boolean  @default(true)
+  rating_average      Float    @default(5.0)
+  services            String?  // JSON string or comma separated
+  base_price_motor    Float    @default(35000)
+  base_price_mobil    Float    @default(75000)
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
+
+  orders   Order[]   @relation("PartnerOrders")
+  bookings Booking[] @relation("PartnerBookings")
+  reviews  Review[]  @relation("PartnerReviews")
+
+  @@map("partners")
+}
+
+model Order {
+  id                 String   @id @default(uuid())
+  order_code         String   @unique
+  user_id            String
+  user               User     @relation("UserOrders", fields: [user_id], references: [id])
+  partner_id         String
+  partner            Partner  @relation("PartnerOrders", fields: [partner_id], references: [id])
+  order_type         String   // "cari_bantuan" | "booking_bengkel"
+  vehicle_type       String   // "motor" | "mobil"
+  vehicle_brand      String
+  complaint          String
+  vehicle_photo      String?
+  status             String   @default("menunggu_mitra")
+  // 10 status:
+  // "menunggu_mitra", "diterima", "menuju_lokasi", "tiba", "inspeksi",
+  // "menunggu_persetujuan_biaya", "sedang_dikerjakan", "selesai", "dibayar", "ditutup"
+  subtotal_cost      Float    @default(0)
+  additional_cost    Float?
+  cost_change_reason String?
+  cost_change_status String?  // "pending", "approved", "rejected"
+  total_cost         Float    @default(0)
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
+
+  booking Booking?
+  payment Payment?
+  review  Review?
+
+  @@map("orders")
+}
+
+model Booking {
+  id           String   @id @default(uuid())
+  order_id     String   @unique
+  order        Order    @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  partner_id   String
+  partner      Partner  @relation("PartnerBookings", fields: [partner_id], references: [id])
+  booking_date String
+  booking_time String
+  service_type String
+  status       String   @default("menunggu_konfirmasi") // "menunggu_konfirmasi" | "dikonfirmasi" | "ditolak" | "selesai"
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  @@map("bookings")
+}
+
+model Review {
+  id         String   @id @default(uuid())
+  order_id   String   @unique
+  order      Order    @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  user_id    String
+  user       User     @relation("UserReviews", fields: [user_id], references: [id])
+  partner_id String
+  partner    Partner  @relation("PartnerReviews", fields: [partner_id], references: [id])
+  rating     Int
+  comment    String?
+  created_at DateTime @default(now())
+
+  @@map("reviews")
+}
+
+model Payment {
+  id             String    @id @default(uuid())
+  order_id       String    @unique
+  order          Order     @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  payment_method String    // "tunai" | "qris"
+  amount         Float
+  payment_status String    @default("pending") // "pending" | "paid"
+  paid_at        DateTime?
+  created_at     DateTime  @default(now())
+
+  @@map("payments")
+}
+
+model Notification {
+  id           String   @id @default(uuid())
+  recipient_id String
+  recipient    User     @relation("UserNotifications", fields: [recipient_id], references: [id], onDelete: Cascade)
+  title        String
+  message      String
+  type         String   // "order_baru", "perubahan_biaya", "verifikasi_mitra", "status_order"
+  is_read      Boolean  @default(false)
+  created_at   DateTime @default(now())
+
+  @@map("notifications")
+}
