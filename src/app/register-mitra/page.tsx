@@ -29,6 +29,12 @@ export default function RegisterMitraPage() {
   const [error, setError] = useState('');
   const [locationName, setLocationName] = useState('Bandung (Default)');
 
+  // File Upload States
+  const [ktpPhoto, setKtpPhoto] = useState('/uploads/ktp_default.jpg');
+  const [businessPhoto, setBusinessPhoto] = useState('https://images.unsplash.com/photo-1517524008697-84bbe3c3fd98?w=800&auto=format&fit=crop&q=80');
+  const [ktpUploading, setKtpUploading] = useState(false);
+  const [businessUploading, setBusinessUploading] = useState(false);
+
   // Custom services list state
   const [services, setServices] = useState<any[]>([]);
   const [newServiceName, setNewServiceName] = useState('');
@@ -150,6 +156,52 @@ export default function RegisterMitraPage() {
     setServices(services.filter((s) => s.id !== id));
   };
 
+  const handleUploadKtp = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setKtpUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload KTP gagal');
+      setKtpPhoto(data.url);
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setKtpUploading(false);
+    }
+  };
+
+  const handleUploadBusiness = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setBusinessUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload Foto Usaha gagal');
+      setBusinessPhoto(data.url);
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setBusinessUploading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -172,11 +224,10 @@ export default function RegisterMitraPage() {
           latitude,
           longitude,
           services: JSON.stringify(services),
-          ktp_photo: '/uploads/ktp_default.jpg',
-          business_photo: 'https://images.unsplash.com/photo-1517524008697-84bbe3c3fd98?w=800&auto=format&fit=crop&q=80',
+          ktp_photo: ktpPhoto,
+          business_photo: businessPhoto,
         }),
       });
-
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Gagal mendaftar sebagai mitra');
 
@@ -364,31 +415,59 @@ export default function RegisterMitraPage() {
           )}
         </div>
 
-        {/* Section 4: File upload placeholders */}
+        {/* Section 4: File upload section */}
         <div className="space-y-4 pt-1">
           <h2 className="text-xs font-extrabold uppercase tracking-wider text-emerald-400 border-b border-gray-800 pb-1">
             Ujian Kelayakan & Foto Dokumen
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-3.5 rounded-2xl bg-gray-900/30 border border-gray-800/80 flex items-center gap-4">
-              <Camera className="w-8 h-8 text-teal-400 shrink-0" />
-              <div>
-                <p className="text-xs font-bold text-gray-200">Foto KTP Pemilik</p>
-                <span className="text-[10px] text-emerald-400 flex items-center gap-1 font-semibold">
-                  <ShieldCheck className="w-3.5 h-3.5" /> Ter-upload (/uploads/ktp_default.jpg)
-                </span>
+            <div className="p-3.5 rounded-2xl bg-gray-900/30 border border-gray-800/80 flex flex-col gap-3">
+              <div className="flex items-center gap-4">
+                <Camera className="w-8 h-8 text-teal-400 shrink-0" />
+                <div className="flex-1">
+                  <p className="text-xs font-bold text-gray-200">Foto KTP Pemilik *</p>
+                  <label className="mt-1 block text-[10px] text-emerald-400 cursor-pointer hover:underline">
+                    {ktpUploading ? 'Mengunggah...' : 'Pilih file KTP untuk diupload...'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleUploadKtp}
+                      disabled={ktpUploading}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
               </div>
+              {ktpPhoto && (
+                <div className="h-28 w-full rounded-xl overflow-hidden bg-gray-950/70 border border-gray-800 relative">
+                  <img src={ktpPhoto} alt="KTP Preview" className="w-full h-full object-cover" />
+                </div>
+              )}
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-gray-900/30 border border-gray-800/80 flex items-center gap-4">
-              <Camera className="w-8 h-8 text-teal-400 shrink-0" />
-              <div>
-                <p className="text-xs font-bold text-gray-200">Foto Usaha / Bengkel</p>
-                <span className="text-[10px] text-emerald-400 flex items-center gap-1 font-semibold">
-                  <ShieldCheck className="w-3.5 h-3.5" /> Ter-upload (Default Asset)
-                </span>
+            <div className="p-3.5 rounded-2xl bg-gray-900/30 border border-gray-800/80 flex flex-col gap-3">
+              <div className="flex items-center gap-4">
+                <Camera className="w-8 h-8 text-teal-400 shrink-0" />
+                <div className="flex-1">
+                  <p className="text-xs font-bold text-gray-200">Foto Usaha / Bengkel *</p>
+                  <label className="mt-1 block text-[10px] text-emerald-400 cursor-pointer hover:underline">
+                    {businessUploading ? 'Mengunggah...' : 'Pilih foto tempat usaha untuk diupload...'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleUploadBusiness}
+                      disabled={businessUploading}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
               </div>
+              {businessPhoto && (
+                <div className="h-28 w-full rounded-xl overflow-hidden bg-gray-950/70 border border-gray-800 relative">
+                  <img src={businessPhoto} alt="Business Preview" className="w-full h-full object-cover" />
+                </div>
+              )}
             </div>
           </div>
         </div>
