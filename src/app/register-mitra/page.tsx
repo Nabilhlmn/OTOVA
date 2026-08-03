@@ -27,6 +27,7 @@ export default function RegisterMitraPage() {
   const [locating, setLocating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [locationName, setLocationName] = useState('Bandung (Default)');
 
   // Custom services list state
   const [services, setServices] = useState<any[]>([]);
@@ -68,9 +69,35 @@ export default function RegisterMitraPage() {
 
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          setLatitude(pos.coords.latitude);
-          setLongitude(pos.coords.longitude);
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          setLatitude(lat);
+          setLongitude(lng);
           setLocating(false);
+
+          // Reverse geocode via OpenStreetMap
+          fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`, {
+            headers: { 'Accept-Language': 'id-ID,id;q=0.9' }
+          })
+            .then((r) => r.json())
+            .then((res) => {
+              if (res && res.address) {
+                const city = res.address.city || res.address.town || res.address.municipality || res.address.city_district || '';
+                const area = res.address.suburb || res.address.village || res.address.neighbourhood || '';
+                let name = '';
+                if (area && city) name = `${area}, ${city}`;
+                else name = area || city || 'GPS Terdeteksi';
+                setLocationName(name);
+                localStorage.setItem('otova_location_name', name);
+                localStorage.setItem('otova_user_lat', lat.toString());
+                localStorage.setItem('otova_user_lng', lng.toString());
+              } else {
+                setLocationName('GPS Terdeteksi');
+              }
+            })
+            .catch(() => {
+              setLocationName('GPS Terdeteksi');
+            });
         },
         (err) => {
           setLocating(false);
@@ -244,10 +271,7 @@ export default function RegisterMitraPage() {
                 <MapPin className="w-4 h-4 text-emerald-400" /> Koordinat Saat Ini
               </span>
               <p className="text-[11px] text-gray-400">
-                Latitude: {latitude.toFixed(6)}, Longitude: {longitude.toFixed(6)}{' '}
-                {latitude === -6.917464 && longitude === 107.619123
-                  ? '(Default Bandung)'
-                  : '(GPS Terdeteksi)'}
+                Latitude: {latitude.toFixed(6)}, Longitude: {longitude.toFixed(6)} ({locationName})
               </p>
             </div>
             <button

@@ -17,6 +17,41 @@ export default function UserDashboard() {
   const [user, setUser] = useState<any>(null);
   const [activeOrders, setActiveOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [locationName, setLocationName] = useState('Bandung, Jawa Barat (Default)');
+
+  useEffect(() => {
+    // Read from localStorage on mount
+    const cached = localStorage.getItem('otova_location_name');
+    if (cached) {
+      setLocationName(`${cached} (GPS Aktif)`);
+    } else {
+      // background try-fetch if permission is already granted
+      if (typeof window !== 'undefined' && 'navigator' in window && navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`, {
+              headers: { 'Accept-Language': 'id-ID,id;q=0.9' }
+            })
+              .then((r) => r.json())
+              .then((res) => {
+                if (res && res.address) {
+                  const city = res.address.city || res.address.town || res.address.municipality || res.address.city_district || '';
+                  const area = res.address.suburb || res.address.village || res.address.neighbourhood || '';
+                  const name = (area && city) ? `${area}, ${city}` : (area || city || 'GPS Aktif');
+                  setLocationName(`${name} (GPS Aktif)`);
+                  localStorage.setItem('otova_location_name', name);
+                }
+              })
+              .catch(() => {});
+          },
+          () => {},
+          { timeout: 3000 }
+        );
+      }
+    }
+  }, []);
 
   useEffect(() => {
     fetch('/api/auth/me')
@@ -55,11 +90,11 @@ export default function UserDashboard() {
             Selamat Datang, {user?.full_name || 'Pengguna'}! 👋
           </h1>
           <p className="text-xs text-gray-300 mt-1">
-            Butuh bantuan darurat di jalan atau ingin booking servis berkala?
+            Butuh bantuan darurat di jalan or ingin booking servis berkala?
           </p>
         </div>
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold">
-          <MapPin className="w-3.5 h-3.5" /> Bandung, Jawa Barat (GPS Aktif)
+          <MapPin className="w-3.5 h-3.5" /> {locationName}
         </div>
       </div>
 

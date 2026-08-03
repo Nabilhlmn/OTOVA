@@ -20,6 +20,7 @@ export default function CariBantuanPage() {
   const [vehicleBrand, setVehicleBrand] = useState('');
   const [complaint, setComplaint] = useState('');
   const [userLocation, setUserLocation] = useState({ lat: -6.917464, lng: 107.619123 });
+  const [locationName, setLocationName] = useState('Bandung (Default)');
   const [locating, setLocating] = useState(false);
   const [partners, setPartners] = useState<any[]>([]);
   const [selectedPartner, setSelectedPartner] = useState<any>(null);
@@ -56,8 +57,34 @@ export default function CariBantuanPage() {
 
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          setUserLocation({ lat, lng });
           setLocating(false);
+
+          // Reverse geocoding using openstreetmap
+          fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`, {
+            headers: { 'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7' }
+          })
+            .then((r) => r.json())
+            .then((res) => {
+              if (res && res.address) {
+                const city = res.address.city || res.address.town || res.address.municipality || res.address.city_district || '';
+                const area = res.address.suburb || res.address.village || res.address.neighbourhood || '';
+                let name = '';
+                if (area && city) name = `${area}, ${city}`;
+                else name = area || city || 'GPS Terdeteksi';
+                setLocationName(name);
+                localStorage.setItem('otova_location_name', name);
+                localStorage.setItem('otova_user_lat', lat.toString());
+                localStorage.setItem('otova_user_lng', lng.toString());
+              } else {
+                setLocationName('GPS Terdeteksi');
+              }
+            })
+            .catch(() => {
+              setLocationName('GPS Terdeteksi');
+            });
         },
         (err) => {
           setLocating(false);
@@ -246,10 +273,7 @@ export default function CariBantuanPage() {
               </button>
             </div>
             <p className="text-[11px] text-gray-400">
-              Koordinat: {userLocation.lat.toFixed(5)}, {userLocation.lng.toFixed(5)}{' '}
-              {userLocation.lat === -6.917464 && userLocation.lng === 107.619123
-                ? '(Default: Bandung)'
-                : '(GPS Aktif)'}
+              Koordinat: {userLocation.lat.toFixed(5)}, {userLocation.lng.toFixed(5)} ({locationName})
             </p>
           </div>
 
