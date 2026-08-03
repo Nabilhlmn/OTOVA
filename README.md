@@ -41,3 +41,69 @@ Berikut adalah daftar lengkap spesifikasi teknologi, versi, dan fungsi masing-ma
   - Integrasi reverse geocoding via OpenStreetMap untuk akurasi alamat.
 - **Dompet Digital & Saldo Tarik Mandiri**:
   - Dashboard Mitra (`/mitra/dashboard`) menampilkan pendapatan kumulatif dan saldo dompet OTOVA yang siap ditarik secara real-time.
+
+---
+
+## 🗺️ Alur Aplikasi (Workflows)
+
+### 1. Alur Pelanggan (Customer Flow)
+```mermaid
+graph TD
+    A[Mulai / Landing Page] --> B{Pilih Layanan}
+    B -- Bantuan Darurat / Emergency --> C[Deteksi GPS Lokasi Aktif]
+    C --> D[Pilih Kategori Kerusakan & Deskripsi]
+    D --> E[Sistem Siarkan Order / Autobid]
+    E --> F[Mitra Menerima Penawaran]
+    F --> G[Perekaman Lokasi & Arah Navigasi]
+    G --> H[Pembaruan Status & Tambah Biaya Sparepart]
+    H --> I[Persetujuan Pengendara & Pembayaran]
+    I --> J[Pemberian Rating & Ulasan]
+    
+    B -- Booking Bengkel --> K[Lihat Daftar Bengkel Terdekat]
+    K --> L[Atur Jadwal Tanggal & Jam Servis]
+    L --> M[Konfirmasi Estimasi Biaya & Booking]
+    M --> N[Bengkel Menyetujui Jadwal]
+```
+
+*   **Pencarian Bantuan Darurat (Emergency Roadside)**:
+    1.  Pengendara menekan tombol **Cari Bantuan Darurat**.
+    2.  Browser mendeteksi koordinat latitude dan longitude terkini menggunakan Geolocation API secara aman (HTTPS).
+    3.  Pengendara memasukkan jenis kendaraan dan keluhan kerusakan (ban bocor, mogok, dll.).
+    4.  Sistem menyebarkan order ke mitra/montir keliling terdekat menggunakan formula jarak Haversine.
+    5.  Setelah mitra menyetujui, pengendara dipindahkan ke laman live tracking dalam waktu 3 detik.
+    6.  Semua pembaruan biaya (misal pembelian oli/ban) selama perbaikan berlangsung memerlukan konfirmasi ketuk klik persetujuan dari sisi pengendara.
+*   **Pemesanan Servis Berkala (Booking Bengkel)**:
+    1.  Pengendara menekan tombol **Booking Bengkel** dan melihat katalog bengkel statis terdekat.
+    2.  Pengendara menjadwalkan hari dan jam tanpa perlu antre di tempat.
+
+---
+
+### 2. Alur Mitra & Teknisi (Partner Flow)
+```mermaid
+graph TD
+    A[Pengunjung Web] --> B[Klik 'Daftar Sebagai Mitra']
+    B --> C{Sudah Login?}
+    C -- Belum --D[Lengkapi Akun Baru & Berkas KTP/Usaha]
+    C -- Sudah --> E[Lengkapi Berkas Kemitraan Saja]
+    D & E --> F[Kirim Berkas - Status PENDING]
+    F --> G[Admin Verifikasi Berkas di Panel Kerja]
+    G -- Disetujui --> H[Role Upgraded Jadi 'Mitra']
+    H --> I[Masuk Panel Dashboard Mitra]
+    I --> J[Mengubah Status Jadi 'ONLINE']
+    J --> K[Terima Permintaan Order / Autobid]
+    K --> L[Proses Servis di Lokasi Pelanggan]
+    L --> M[Order Selesai - Saldo Masuk ke Wallet]
+    M --> N[Tarik Saldo Mandiri / Withdraw]
+```
+
+*   **Pendaftaran & Validasi Dokumen**:
+    1.  Pengguna membuka formulir `/register-mitra` (bisa diisi langsung oleh user yang belum login).
+    2.  Mengunggah foto KTP asli dan foto tempat usaha yang disimpan ke direktori `./public/uploads`.
+    3.  Admin memeriksa permohonan melalui portal `/admin/verifikasi-mitra`.
+    4.  Saat disetujui, status berubah menjadi `approved` dan role akun naik kelas secara otomatis menjadi `'mitra'`.
+*   **Penerimaan Pekerjaan & Pendapatan**:
+    1.  Mitra mengaktifkan toggle **ONLINE** dan mode **Autobid** (jika ingin menerima order instan tanpa klik terima).
+    2.  Setiap order darurat terdekat yang masuk akan membunyikan notifikasi rute perbaikan.
+    3.  Setelah perbaikan rampung, total biaya masuk ke **Wallet OTOVA** mitra.
+    4.  Mitra dapat mengajukan tarik dana (**Withdraw**) secara instan ke rekening bank mereka kapan saja melalui tombol Dashboard.
+
