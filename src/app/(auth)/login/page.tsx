@@ -63,35 +63,35 @@ export default function LoginPage() {
         <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
-            onClick={() => quickLogin('budi@gmail.com', '123456')}
+            onClick={() => quickLogin('customer@otova.com', '123456')}
             className="p-2.5 rounded-xl bg-gray-900 hover:bg-emerald-950/40 text-left border border-gray-800 hover:border-emerald-500/40 transition-all text-xs"
           >
             <div className="font-bold text-gray-200 flex items-center gap-1.5">
               <User className="w-3.5 h-3.5 text-emerald-400" /> User (Budi)
             </div>
-            <span className="text-[10px] text-gray-500">budi@gmail.com</span>
+            <span className="text-[10px] text-gray-500">customer@otova.com</span>
           </button>
 
           <button
             type="button"
-            onClick={() => quickLogin('majumotor@gmail.com', '123456')}
+            onClick={() => quickLogin('mitra@otova.com', '123456')}
             className="p-2.5 rounded-xl bg-gray-900 hover:bg-emerald-950/40 text-left border border-gray-800 hover:border-emerald-500/40 transition-all text-xs"
           >
             <div className="font-bold text-gray-200 flex items-center gap-1.5">
-              <Store className="w-3.5 h-3.5 text-blue-400" /> Mitra Bengkel
+              <Store className="w-3.5 h-3.5 text-blue-400" /> Mitra Bengkel (Aktif)
             </div>
-            <span className="text-[10px] text-gray-500">majumotor@gmail.com</span>
+            <span className="text-[10px] text-gray-500">mitra@otova.com</span>
           </button>
 
           <button
             type="button"
-            onClick={() => quickLogin('agusmontir@gmail.com', '123456')}
+            onClick={() => quickLogin('mitra_pending@otova.com', '123456')}
             className="p-2.5 rounded-xl bg-gray-900 hover:bg-emerald-950/40 text-left border border-gray-800 hover:border-emerald-500/40 transition-all text-xs"
           >
             <div className="font-bold text-gray-200 flex items-center gap-1.5">
-              <Wrench className="w-3.5 h-3.5 text-amber-400" /> Mitra Montir
+              <Wrench className="w-3.5 h-3.5 text-amber-400" /> Mitra Pending
             </div>
-            <span className="text-[10px] text-gray-500">agusmontir@gmail.com</span>
+            <span className="text-[10px] text-gray-500">mitra_pending@otova.com</span>
           </button>
 
           <button
