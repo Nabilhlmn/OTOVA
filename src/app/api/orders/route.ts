@@ -11,11 +11,73 @@ export async function GET(request: Request) {
 
     const whereClause: any = {};
     if (userId) whereClause.user_id = userId;
-    if (partnerId) whereClause.partner_id = partnerId;
     if (status) whereClause.status = status;
 
+    const queryWhere: any = { ...whereClause };
+    if (partnerId) {
+      const partner = await prisma.partner.findUnique({
+        where: { id: partnerId },
+      });
+      if (partner && partner.is_online && partner.verification_status === 'approved') {
+        // Autobid check
+        if ((partner as any).is_autobid) {
+          let isEligible = true;
+          if (partner.partner_type === 'teknisi') {
+            const activeOrder = await prisma.order.findFirst({
+              where: {
+                partner_id: partner.id,
+                status: { in: ['diterima', 'menuju_lokasi', 'sampai_lokasi', 'sedang_dikerjakan'] },
+              },
+            });
+            if (activeOrder) {
+              isEligible = false;
+            }
+          }
+
+          if (isEligible) {
+            const waitingOrder = await prisma.order.findFirst({
+              where: {
+                status: 'menunggu_mitra',
+                order_type: 'cari_bantuan',
+              },
+            });
+
+            if (waitingOrder) {
+              await prisma.order.update({
+                where: { id: waitingOrder.id },
+                data: {
+                  partner_id: partner.id,
+                  status: 'diterima',
+                  updated_at: new Date(),
+                },
+              });
+
+              await prisma.notification.create({
+                data: {
+                  recipient_id: partner.user_id,
+                  title: 'Order Diterima Otomatis (Autobid)!',
+                  message: `Order #${waitingOrder.order_code} telah otomatis diterima oleh fitur Autobid Anda.`,
+                  type: 'order_baru',
+                },
+              });
+            }
+          }
+        }
+
+        queryWhere.OR = [
+          { partner_id: partnerId, ...(status ? { status } : {}) },
+          {
+            order_type: 'cari_bantuan',
+            status: 'menunggu_mitra',
+          },
+        ];
+      } else {
+        queryWhere.partner_id = partnerId;
+      }
+    }
+
     const orders = await prisma.order.findMany({
-      where: whereClause,
+      where: queryWhere,
       include: {
         user: {
           select: { full_name: true, phone_number: true, email: true, address: true },
@@ -63,20 +125,50 @@ export async function POST(request: Request) {
       service_type,
     } = body;
 
-    if (!partner_id || !order_type || !vehicle_type || !vehicle_brand || !complaint) {
+    if (!order_type || !vehicle_type || !vehicle_brand || !complaint) {
       return NextResponse.json(
         { error: 'Lengkapi semua field order yang diperlukan' },
         { status: 400 }
       );
     }
 
-    const partner = await prisma.partner.findUnique({
-      where: { id: partner_id },
-      include: { user: true },
-    });
+    if (order_type !== 'cari_bantuan' && !partner_id) {
+      return NextResponse.json(
+        { error: 'Lengkapi semua field order yang diperlukan' },
+        { status: 400 }
+      );
+    }
 
-    if (!partner) {
-      return NextResponse.json({ error: 'Mitra tidak ditemukan' }, { status: 404 });
+    let finalPartnerId = partner_id;
+    let partner = null;
+
+    if (order_type === 'cari_bantuan' && !finalPartnerId) {
+      // Find the first online approved partner
+      const fallbackPartner = await prisma.partner.findFirst({
+        where: {
+          is_online: true,
+          verification_status: 'approved',
+        },
+        include: { user: true },
+      });
+
+      if (!fallbackPartner) {
+        return NextResponse.json(
+          { error: 'Tidak ada mitra online/aktif saat ini di sekitar Anda. Silakan coba beberapa saat lagi.' },
+          { status: 400 }
+        );
+      }
+      partner = fallbackPartner;
+      finalPartnerId = fallbackPartner.id;
+    } else {
+      partner = await prisma.partner.findUnique({
+        where: { id: finalPartnerId },
+        include: { user: true },
+      });
+
+      if (!partner) {
+        return NextResponse.json({ error: 'Mitra tidak ditemukan' }, { status: 404 });
+      }
     }
 
     // Dynamic price estimation based on Partner's configured rates
@@ -122,7 +214,7 @@ export async function POST(request: Request) {
       data: {
         order_code: orderCode,
         user_id: session.id,
-        partner_id,
+        partner_id: finalPartnerId,
         order_type,
         vehicle_type,
         vehicle_brand,
@@ -138,7 +230,7 @@ export async function POST(request: Request) {
       await prisma.booking.create({
         data: {
           order_id: newOrder.id,
-          partner_id,
+          partner_id: finalPartnerId,
           booking_date,
           booking_time,
           service_type: service_type || complaint,
@@ -147,15 +239,36 @@ export async function POST(request: Request) {
       });
     }
 
-    // Notify Partner
-    await prisma.notification.create({
-      data: {
-        recipient_id: partner.user_id,
-        title: order_type === 'cari_bantuan' ? 'Order Bantuan Baru!' : 'Booking Bengkel Baru!',
-        message: `Order #${orderCode} dari ${session.full_name} (${vehicle_brand}). Mohon terima atau tolak.`,
-        type: 'order_baru',
-      },
-    });
+    // Notify Partner(s)
+    if (order_type === 'cari_bantuan') {
+      const onlinePartners = await prisma.partner.findMany({
+        where: {
+          is_online: true,
+          verification_status: 'approved',
+        },
+        select: { user_id: true },
+      });
+
+      if (onlinePartners.length > 0) {
+        await prisma.notification.createMany({
+          data: onlinePartners.map((p) => ({
+            recipient_id: p.user_id,
+            title: 'Order Bantuan Baru!',
+            message: `Order #${orderCode} dari ${session.full_name} (${vehicle_brand}). Mohon terima atau tolak.`,
+            type: 'order_baru',
+          })),
+        });
+      }
+    } else {
+      await prisma.notification.create({
+        data: {
+          recipient_id: partner.user_id,
+          title: 'Booking Bengkel Baru!',
+          message: `Order #${orderCode} dari ${session.full_name} (${vehicle_brand}). Mohon terima atau tolak.`,
+          type: 'order_baru',
+        },
+      });
+    }
 
     return NextResponse.json({ success: true, order: newOrder });
   } catch (error: any) {

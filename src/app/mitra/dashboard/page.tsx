@@ -11,13 +11,39 @@ import {
   ShieldBan,
   PhoneCall,
   Wrench,
+  Wallet,
+  DollarSign,
 } from 'lucide-react';
 
 export default function MitraDashboard() {
   const [partner, setPartner] = useState<any>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [isOnline, setIsOnline] = useState(true);
+  const [isAutobid, setIsAutobid] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [withdrawing, setWithdrawing] = useState(false);
+
+  const handleWithdraw = async () => {
+    if (!partner || (partner.balance || 0) <= 0) {
+      alert("Saldo dompet Anda kosong.");
+      return;
+    }
+    if (!confirm(`Apakah Anda yakin ingin menarik saldo sebesar Rp ${partner.balance.toLocaleString('id-ID')}?`)) {
+      return;
+    }
+    setWithdrawing(true);
+    try {
+      const res = await fetch('/api/partners/withdraw', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal menarik saldo');
+      alert(`Penarikan saldo sebesar Rp ${data.amount.toLocaleString('id-ID')} berhasil diproses ke rekening Anda!`);
+      fetchDashboardData();
+    } catch (e: any) {
+      alert(e.message || 'Penarikan gagal');
+    } finally {
+      setWithdrawing(false);
+    }
+  };
 
   const fetchDashboardData = () => {
     fetch('/api/auth/me')
@@ -26,6 +52,7 @@ export default function MitraDashboard() {
         if (data.authenticated && data.user.partner) {
           setPartner(data.user.partner);
           setIsOnline(data.user.partner.is_online);
+          setIsAutobid(data.user.partner.is_autobid || false);
 
           // Fetch orders assigned to this partner
           fetch(`/api/orders?partner_id=${data.user.partner.id}`)
@@ -62,6 +89,24 @@ export default function MitraDashboard() {
     }
   };
 
+  const toggleAutobidStatus = async () => {
+    if (!partner) return;
+    try {
+      const newStatus = !isAutobid;
+      const res = await fetch(`/api/partners/${partner.id}/autobid`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_autobid: newStatus }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      setIsAutobid(newStatus);
+    } catch (e: any) {
+      alert(e.message || 'Gagal mengubah status Autobid');
+    }
+  };
+
   if (loading) return <div className="text-center py-16 text-gray-400 text-xs">Memuat dashboard mitra...</div>;
   if (!partner) {
     return (
@@ -88,6 +133,7 @@ export default function MitraDashboard() {
     (o) => o.status !== 'menunggu_mitra' && o.status !== 'ditutup' && o.status !== 'dibatalkan'
   );
   const completedOrders = orders.filter((o) => o.status === 'ditutup' || o.status === 'dibayar');
+  const totalEarnings = completedOrders.reduce((sum, o) => sum + (o.total_cost || 0), 0);
 
   return (
     <div className="space-y-6 py-4">
@@ -167,6 +213,18 @@ export default function MitraDashboard() {
               <Wrench className="w-4 h-4" /> Atur Tarif Estimasi
             </Link>
             <button
+              onClick={toggleAutobidStatus}
+              disabled={pendingVerification}
+              className={`px-5 py-3 rounded-2xl font-bold text-xs flex items-center gap-2 transition-all shadow-lg ${
+                isAutobid
+                  ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/20'
+                  : 'bg-gray-800 hover:bg-gray-700 text-gray-400'
+              }`}
+            >
+              <Store className="w-4 h-4" />
+              {isAutobid ? 'Autobid: AKTIF' : 'Autobid: MATI'}
+            </button>
+            <button
               onClick={toggleOnlineStatus}
               disabled={pendingVerification}
               className={`px-5 py-3 rounded-2xl font-bold text-xs flex items-center gap-2.5 transition-all shadow-lg ${
@@ -197,6 +255,42 @@ export default function MitraDashboard() {
         <div className="glass-card p-5 rounded-2xl border border-gray-800 space-y-1">
           <span className="text-xs text-gray-400 font-semibold">Total Order Selesai</span>
           <div className="text-2xl font-extrabold text-purple-400">{completedOrders.length}</div>
+        </div>
+      </div>
+
+      {/* Financial Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="glass-card p-5 rounded-2xl border border-emerald-500/20 bg-emerald-950/10 flex items-center justify-between gap-4">
+          <div className="space-y-1.5">
+            <span className="text-xs text-gray-400 font-semibold flex items-center gap-1.5">
+              <DollarSign className="w-4 h-4 text-emerald-400" /> Total Pendapatan Mitra
+            </span>
+            <div className="text-2xl font-extrabold text-white">
+              Rp {totalEarnings.toLocaleString('id-ID')}
+            </div>
+            <p className="text-[10px] text-gray-400">Total akumulasi dari order yang selesai & dibayar.</p>
+          </div>
+        </div>
+
+        <div className="glass-card p-5 rounded-2xl border border-blue-500/20 bg-blue-950/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1.5">
+            <span className="text-xs text-gray-400 font-semibold flex items-center gap-1.5">
+              <Wallet className="w-4 h-4 text-blue-400" /> Saldo Dompet OTOVA
+            </span>
+            <div className="text-2xl font-extrabold text-white">
+              Rp {(partner.balance || 0).toLocaleString('id-ID')}
+            </div>
+            <p className="text-[10px] text-gray-400">Dapat ditarik langsung ke rekening bank terdaftar Anda.</p>
+          </div>
+          <div>
+            <button
+              onClick={handleWithdraw}
+              disabled={withdrawing || (partner.balance || 0) <= 0}
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:hover:bg-blue-600 text-white text-xs font-bold transition-all shadow-md shadow-blue-500/25"
+            >
+              {withdrawing ? 'Menarik...' : '💸 Tarik Saldo'}
+            </button>
+          </div>
         </div>
       </div>
 

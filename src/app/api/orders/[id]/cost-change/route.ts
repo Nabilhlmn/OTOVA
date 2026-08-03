@@ -16,9 +16,9 @@ export async function POST(
     const { additional_cost, reason } = await request.json();
     const additional = Number(additional_cost);
 
-    if (isNaN(additional) || additional <= 0 || !reason) {
+    if (isNaN(additional) || additional === 0 || !reason) {
       return NextResponse.json(
-        { error: 'Masukkan jumlah biaya tambahan dan alasan yang valid' },
+        { error: 'Masukkan jumlah biaya penyesuaian (bisa positif/negatif) dan alasan yang valid' },
         { status: 400 }
       );
     }
@@ -26,6 +26,13 @@ export async function POST(
     const order = await prisma.order.findUnique({ where: { id: params.id } });
     if (!order) {
       return NextResponse.json({ error: 'Order tidak ditemukan' }, { status: 404 });
+    }
+
+    if (order.subtotal_cost + additional < 0) {
+      return NextResponse.json(
+        { error: 'Total biaya setelah penyesuaian tidak boleh kurang dari 0' },
+        { status: 400 }
+      );
     }
 
     const updatedOrder = await prisma.order.update({

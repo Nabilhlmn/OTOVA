@@ -8,11 +8,18 @@
   --font-jakarta: 'Plus Jakarta Sans', sans-serif;
 }
 
+html {
+  overflow-y: auto !important;
+  overflow-x: hidden;
+}
+
 body {
   font-family: var(--font-jakarta);
   background-color: #0b0f19;
   color: #f3f4f6;
   min-height: 100vh;
+  overflow-y: auto !important;
+  overflow-x: hidden;
 }
 
 /* Glassmorphism Utilities */

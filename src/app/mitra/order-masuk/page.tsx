@@ -11,6 +11,7 @@ import {
 
 export default function MitraOrderMasukPage() {
   const [orders, setOrders] = useState<any[]>([]);
+  const [partner, setPartner] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -24,6 +25,7 @@ export default function MitraOrderMasukPage() {
       .then((res) => res.json())
       .then((data) => {
         if (data.authenticated && data.user.partner) {
+          setPartner(data.user.partner);
           fetch(`/api/orders?partner_id=${data.user.partner.id}`)
             .then((r) => r.json())
             .then((oData) => {
@@ -83,6 +85,10 @@ export default function MitraOrderMasukPage() {
       setActionLoading(false);
     }
   };
+
+  const hasActiveOrder = partner?.partner_type === 'teknisi' && orders.some(
+    (o) => ['diterima', 'menuju_lokasi', 'tiba', 'inspeksi', 'menunggu_persetujuan_biaya', 'sedang_dikerjakan'].includes(o.status)
+  );
 
   if (loading) return <div className="text-center py-16 text-gray-400 text-xs">Memuat order masuk...</div>;
 
@@ -167,8 +173,13 @@ export default function MitraOrderMasukPage() {
                       <>
                         <button
                           onClick={() => updateOrderStatus(order.id, 'diterima')}
-                          disabled={actionLoading}
-                          className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-md shadow-emerald-500/20"
+                          disabled={actionLoading || hasActiveOrder}
+                          className={`px-4 py-2 rounded-xl text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-md ${
+                            hasActiveOrder
+                              ? 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700/60 shadow-none'
+                              : 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/20'
+                          }`}
+                          title={hasActiveOrder ? 'Selesaikan order aktif Anda terlebih dahulu' : undefined}
                         >
                           <Check className="w-4 h-4" /> Terima Order
                         </button>
@@ -179,6 +190,11 @@ export default function MitraOrderMasukPage() {
                         >
                           <X className="w-4 h-4" /> Tolak Order
                         </button>
+                        {hasActiveOrder && (
+                          <span className="text-[11px] text-amber-400 font-semibold self-center">
+                            ⚠️ Selesaikan order aktif Anda dulu
+                          </span>
+                        )}
                       </>
                     )}
 
@@ -244,17 +260,17 @@ export default function MitraOrderMasukPage() {
             className="glass-card p-6 rounded-3xl max-w-md w-full space-y-4 border border-amber-500/30"
           >
             <h3 className="text-base font-bold text-white flex items-center gap-2">
-              <PlusCircle className="w-5 h-5 text-amber-400" /> Ajukan Biaya Tambahan
+              <PlusCircle className="w-5 h-5 text-amber-400" /> Ajukan Penyesuaian Biaya
             </h3>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-gray-300">Biaya Tambahan (Rp)</label>
+              <label className="text-xs font-semibold text-gray-300">Biaya Penyesuaian (+/- Rp)</label>
               <input
                 type="number"
                 value={additionalCost}
                 onChange={(e) => setAdditionalCost(e.target.value)}
                 required
-                placeholder="Contoh: 50000"
+                placeholder="Contoh: 50000 (tambahan) atau -20000 (diskon)"
                 className="w-full px-4 py-2.5 rounded-xl glass-input text-xs"
               />
             </div>

@@ -39,9 +39,54 @@ export async function PATCH(
       return NextResponse.json({ error: 'Order tidak ditemukan' }, { status: 404 });
     }
 
+    const partner = await prisma.partner.findFirst({
+      where: { user_id: session.id },
+    });
+
+    if (!partner) {
+      return NextResponse.json({ error: 'Pengguna bukan terdaftar sebagai mitra' }, { status: 403 });
+    }
+
+    if (status === 'diterima') {
+      if (order.status !== 'menunggu_mitra') {
+        return NextResponse.json({ error: 'Order ini sudah diterima oleh mitra lain' }, { status: 400 });
+      }
+
+      if (partner.partner_type === 'teknisi') {
+        const activeOrder = await prisma.order.findFirst({
+          where: {
+            partner_id: partner.id,
+            status: {
+              in: [
+                'diterima',
+                'menuju_lokasi',
+                'tiba',
+                'inspeksi',
+                'menunggu_persetujuan_biaya',
+                'sedang_dikerjakan',
+              ],
+            },
+            id: { not: order.id },
+          },
+        });
+
+        if (activeOrder) {
+          return NextResponse.json(
+            { error: 'Anda masih memiliki orderan aktif yang sedang berjalan' },
+            { status: 400 }
+          );
+        }
+      }
+    }
+
+    const dataUpdate: any = { status };
+    if (status === 'diterima') {
+      dataUpdate.partner_id = partner.id;
+    }
+
     const updatedOrder = await prisma.order.update({
       where: { id: params.id },
-      data: { status },
+      data: dataUpdate,
     });
 
     // If order reaches 'selesai' or 'diterima', update booking status if any

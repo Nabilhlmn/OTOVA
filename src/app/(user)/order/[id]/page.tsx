@@ -183,14 +183,14 @@ export default function OrderTrackerPage({ params }: { params: { id: string } })
           <Clock className="w-4 h-4" /> Progress Siklus Order (10 Tahapan)
         </h2>
 
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-2">
+        <div className="flex sm:grid sm:grid-cols-5 gap-2 pt-2 overflow-x-auto pb-2 scroll-smooth snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {ORDER_STEPS.map((step, idx) => {
             const isCompleted = idx <= currentStepIndex;
             const isCurrent = idx === currentStepIndex;
             return (
               <div
                 key={step.id}
-                className={`p-3 rounded-xl border text-center transition-all ${
+                className={`p-3 rounded-xl border text-center transition-all shrink-0 w-[130px] sm:w-auto snap-center ${
                   isCurrent
                     ? 'bg-emerald-500/20 border-emerald-500 text-white font-bold animate-pulse'
                     : isCompleted

@@ -23,7 +23,7 @@ export default function RootLayout({
         <footer className="border-t border-gray-800/80 py-8 px-4 text-center text-xs text-gray-500 bg-navy-950 mt-12">
           <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <img src="/logo-otova.png" alt="OTOVA Logo" className="h-6 object-contain" />
+              <img src="/logo-otova.png" alt="OTOVA Logo" className="h-6 object-contain brightness-0 invert" />
               <span>© 2026 Platform Bantuan Kendaraan Indonesia.</span>
             </div>
             <p className="text-gray-400">

@@ -32,6 +32,16 @@ export async function POST(request: Request) {
       include: { partner: true },
     });
 
+    // Credit partner wallet balance
+    await prisma.partner.update({
+      where: { id: order.partner_id },
+      data: {
+        balance: {
+          increment: Number(amount),
+        },
+      },
+    });
+
     // Notify Partner
     await prisma.notification.create({
       data: {

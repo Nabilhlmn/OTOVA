@@ -19,7 +19,12 @@ yarn-debug.log*
 yarn-error.log*
 
 # local env files
+.env
 .env*.local
+
+# SQLite DB files
+*.db
+*.db-journal
 
 # vercel
 .vercel

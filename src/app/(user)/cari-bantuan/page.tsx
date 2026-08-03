@@ -47,28 +47,42 @@ export default function CariBantuanPage() {
 
   const handleGetGPS = () => {
     setLocating(true);
-    if ('geolocation' in navigator) {
+    if (typeof window !== 'undefined' && 'geolocation' in navigator) {
+      if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+        alert("GPS / Layanan Lokasi hanya diizinkan melalui koneksi aman (HTTPS). Mohon akses halaman OTOVA menggunakan protokol HTTPS.");
+        setLocating(false);
+        return;
+      }
+
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
           setLocating(false);
         },
-        () => {
+        (err) => {
           setLocating(false);
-        }
+          let errMsg = "Akses lokasi gagal: ";
+          if (err.code === err.PERMISSION_DENIED) {
+            errMsg += "Izin akses GPS dinonaktifkan di kustomisasi peramban Anda. Silakan aktifkan izin lokasi di peramban.";
+          } else if (err.code === err.POSITION_UNAVAILABLE) {
+            errMsg += "Informasi posisi GPS tidak terdeteksi.";
+          } else if (err.code === err.TIMEOUT) {
+            errMsg += "Waktu request lokasi GPS habis.";
+          } else {
+            errMsg += err.message;
+          }
+          alert(errMsg);
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
       );
     } else {
+      alert("Fitur GPS / Geolocation tidak didukung oleh browser Anda.");
       setLocating(false);
     }
   };
 
   const handleOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedPartner) {
-      setError('Pilih salah satu mitra terdekat lebih dulu');
-      return;
-    }
-
     setError('');
     setSubmitting(true);
 
@@ -77,7 +91,7 @@ export default function CariBantuanPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          partner_id: selectedPartner.id,
+          partner_id: selectedPartner ? selectedPartner.id : null,
           order_type: 'cari_bantuan',
           vehicle_type: vehicleType,
           vehicle_brand: vehicleBrand,
@@ -267,12 +281,8 @@ export default function CariBantuanPage() {
 
           <button
             type="submit"
-            disabled={submitting || !selectedPartner}
-            className={`w-full py-3 rounded-xl font-bold text-xs shadow-lg transition-all flex items-center justify-center gap-2 ${
-              selectedPartner
-                ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-emerald-500/20'
-                : 'bg-gray-800 text-gray-500 cursor-not-allowed'
-            }`}
+            disabled={submitting}
+            className="w-full py-3 rounded-xl font-bold text-xs shadow-lg transition-all flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-emerald-500/20 hover:from-emerald-600 hover:to-teal-700"
           >
             {submitting ? (
               'Mengirim Order...'
@@ -281,7 +291,9 @@ export default function CariBantuanPage() {
                 Kirim Order ke {selectedPartner.business_name} <ArrowRight className="w-4 h-4" />
               </>
             ) : (
-              'Pilih Mitra di Samping Dulu'
+              <>
+                🚨 Minta Bantuan Darurat Sekarang <ArrowRight className="w-4 h-4" />
+              </>
             )}
           </button>
         </form>
@@ -289,7 +301,7 @@ export default function CariBantuanPage() {
         {/* Partner Selection Column */}
         <div className="md:col-span-6 space-y-3">
           <h2 className="text-xs font-bold uppercase tracking-wider text-emerald-400">
-            Pilih Mitra Penyedia Jasa Terdekat ({partners.length})
+            Daftar Mitra Online Terdekat ({partners.length}) - Opsional
           </h2>
 
           {loadingPartners ? (

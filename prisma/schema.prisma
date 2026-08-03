@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -48,6 +49,8 @@ model Partner {
   services            String?  // JSON string or comma separated
   base_price_motor    Float    @default(35000)
   base_price_mobil    Float    @default(75000)
+  balance             Float    @default(0.0)
+  is_autobid          Boolean  @default(false)
   created_at          DateTime @default(now())
   updated_at          DateTime @updatedAt
 
