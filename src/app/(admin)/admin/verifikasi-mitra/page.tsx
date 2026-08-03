@@ -42,8 +42,16 @@ export default function VerifikasiMitraPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ verification_status: status }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      
+      const text = await res.text();
+      let data: any;
+      try {
+        data = JSON.parse(text);
+      } catch (jsonErr) {
+        throw new Error(`Server returned HTML error (HTTP ${res.status}): ${text.substring(0, 160)}`);
+      }
+      
+      if (!res.ok) throw new Error(data.error || 'Terjadi kesalahan pada server');
 
       fetchPartners();
     } catch (err: any) {
