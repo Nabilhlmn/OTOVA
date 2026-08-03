@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getSession } from '@/lib/auth';
+import { getSession, hashPassword, createSession } from '@/lib/auth';
 import { calculateDistance } from '@/lib/distance';
 
 export async function GET(request: Request) {
@@ -62,10 +62,6 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const body = await request.json();
     const {
       partner_type,
@@ -76,7 +72,55 @@ export async function POST(request: Request) {
       services,
       ktp_photo,
       business_photo,
+      is_anonymous,
+      full_name,
+      email,
+      phone_number,
+      password,
     } = body;
+
+    let targetUserId = session?.id || null;
+
+    // Handle anonymous registration
+    if (!targetUserId) {
+      if (!is_anonymous || !full_name || !email || !phone_number || !password) {
+        return NextResponse.json({ error: 'Unauthorized: Harap login atau lengkapi informasi akun utama' }, { status: 401 });
+      }
+
+      // Check if user already exists
+      const existingUser = await prisma.user.findUnique({
+        where: { email },
+      });
+      if (existingUser) {
+        return NextResponse.json({ error: 'Email sudah terdaftar. Silakan login terlebih dahulu' }, { status: 400 });
+      }
+
+      const passwordHash = await hashPassword(password);
+
+      // Create new User account
+      const newUser = await prisma.user.create({
+        data: {
+          full_name,
+          email,
+          phone_number,
+          password_hash: passwordHash,
+          address,
+          role: 'user', // Starts as normal 'user' role, upgraded to 'mitra' on verification approval
+        },
+      });
+
+      targetUserId = newUser.id;
+
+      // Automatically sign in the freshly created user session
+      await createSession({
+        id: newUser.id,
+        email: newUser.email,
+        full_name: newUser.full_name,
+        role: newUser.role,
+        partner_id: null,
+        partner_status: 'pending',
+      });
+    }
 
     if (!partner_type || !business_name || !address) {
       return NextResponse.json(
@@ -85,15 +129,17 @@ export async function POST(request: Request) {
       );
     }
 
-    // Update user role to mitra
-    await prisma.user.update({
-      where: { id: session.id },
-      data: { role: 'mitra' },
+    // Check if user already has a partner application
+    const existingPartner = await prisma.partner.findUnique({
+      where: { user_id: targetUserId },
     });
+    if (existingPartner) {
+      return NextResponse.json({ error: 'Anda sudah terdaftar sebagai mitra atau pendaftaran Anda sedang diproses' }, { status: 400 });
+    }
 
     const partner = await prisma.partner.create({
       data: {
-        user_id: session.id,
+        user_id: targetUserId,
         partner_type,
         business_name,
         address,

@@ -17,6 +17,13 @@ export default function RegisterMitraPage() {
   const router = useRouter();
   const [loadingUser, setLoadingUser] = useState(true);
   const [user, setUser] = useState<any>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  // Guest Account Sign Up States
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
 
   // Form states
   const [businessName, setBusinessName] = useState('');
@@ -46,18 +53,23 @@ export default function RegisterMitraPage() {
     fetch('/api/auth/me')
       .then((res) => res.json())
       .then((data) => {
-        if (!data.authenticated) {
-          router.push('/login');
-        } else if (data.user?.partner) {
-          // If already has partner profile, direct straight to dashboard
-          router.push('/mitra/dashboard');
-        } else {
+        if (data.authenticated) {
+          setIsLoggedIn(true);
           setUser(data.user);
+          if (data.user?.partner) {
+            // If already has partner profile, direct straight to dashboard
+            router.push('/mitra/dashboard');
+          } else {
+            setLoadingUser(false);
+          }
+        } else {
+          setIsLoggedIn(false);
           setLoadingUser(false);
         }
       })
       .catch(() => {
-        router.push('/login');
+        setIsLoggedIn(false);
+        setLoadingUser(false);
       });
   }, [router]);
 
@@ -213,6 +225,19 @@ export default function RegisterMitraPage() {
       return;
     }
 
+    if (!isLoggedIn) {
+      if (!fullName.trim() || !email.trim() || !phone.trim() || !password.trim()) {
+        setError("Harap isi semua field informasi akun utama.");
+        setSubmitting(false);
+        return;
+      }
+      if (password.length < 6) {
+        setError("Kata sandi minimal harus 6 karakter.");
+        setSubmitting(false);
+        return;
+      }
+    }
+
     try {
       const res = await fetch('/api/partners', {
         method: 'POST',
@@ -226,6 +251,12 @@ export default function RegisterMitraPage() {
           services: JSON.stringify(services),
           ktp_photo: ktpPhoto,
           business_photo: businessPhoto,
+          // Anonymous Guest details
+          is_anonymous: !isLoggedIn,
+          full_name: fullName,
+          email,
+          phone_number: phone,
+          password,
         }),
       });
       const data = await res.json();
@@ -261,6 +292,59 @@ export default function RegisterMitraPage() {
           <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 shrink-0" />
             <span>{error}</span>
+          </div>
+        )}
+
+        {!isLoggedIn && (
+          <div className="space-y-4">
+            <h2 className="text-xs font-extrabold uppercase tracking-wider text-emerald-400 border-b border-gray-800 pb-1">
+              Informasi Akun Utama
+            </h2>
+            <p className="text-[10px] text-gray-400">
+              Anda belum login. Silakan lengkapi data berikut untuk membuat akun user OTOVA Anda sekaligus mendaftar kemitraan.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-gray-300">Nama Lengkap *</label>
+                <input
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="Contoh: Budi Santoso"
+                  className="w-full px-3.5 py-2.5 rounded-xl glass-input text-xs"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-gray-300">Email *</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="budi@gmail.com"
+                  className="w-full px-3.5 py-2.5 rounded-xl glass-input text-xs"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-gray-300">Nomor Telepon / WhatsApp *</label>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="Contoh: 08123456789"
+                  className="w-full px-3.5 py-2.5 rounded-xl glass-input text-xs"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-gray-300">Kata Sandi Akun *</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Minimal 6 karakter"
+                  className="w-full px-3.5 py-2.5 rounded-xl glass-input text-xs"
+                />
+              </div>
+            </div>
           </div>
         )}
 
